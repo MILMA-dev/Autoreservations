@@ -8,6 +8,10 @@
 import { Vehicule, FiltresRecherche } from '../modeles/types';
 import { VEHICULES_MOCK } from './donneesMock';
 import { appelerApi } from './serviceApi';
+import {
+  obtenirVehiculesAjoutes,
+  sauvegarderVehiculesAjoutes,
+} from './stockageLocalAvance';
 
 /**
  * Récupère la liste des véhicules selon des filtres optionnels.
@@ -33,8 +37,12 @@ export const listerVehicules = async (
     return reponseApi._items;
   }
 
-  // Mode local : filtrage sur les données mock
-  let resultats = [...VEHICULES_MOCK];
+  // Mode local : chargement des véhicules ajoutés localement + mock
+  const vehiculesAjoutes = await obtenirVehiculesAjoutes();
+  // Évite les doublons si déjà présents
+  const idsMock = new Set(VEHICULES_MOCK.map((v) => v.identifiant));
+  const vehiculesLocauxAssocies = vehiculesAjoutes.filter((v) => !idsMock.has(v.identifiant));
+  let resultats = [...vehiculesLocauxAssocies, ...VEHICULES_MOCK];
   if (filtres.recherche) {
     const r = filtres.recherche.toLowerCase();
     resultats = resultats.filter(
@@ -71,7 +79,8 @@ export const obtenirVehicule = async (
 ): Promise<Vehicule | null> => {
   const reponseApi = await appelerApi<Vehicule>(`/vehicules/${identifiant}`);
   if (reponseApi) return reponseApi;
-  return VEHICULES_MOCK.find((v) => v.identifiant === identifiant) || null;
+  const tous = await listerVehicules();
+  return tous.find((v) => v.identifiant === identifiant) || null;
 };
 
 /**
@@ -86,7 +95,8 @@ export const listerVehiculesDuLoueur = async (
     `/vehicules?where=proprietaire_id=="${proprietaireId}"`
   );
   if (reponseApi && reponseApi._items) return reponseApi._items;
-  return VEHICULES_MOCK.filter((v) => v.proprietaireId === proprietaireId);
+  const tous = await listerVehicules();
+  return tous.filter((v) => v.proprietaireId === proprietaireId);
 };
 
 /**
@@ -108,6 +118,8 @@ export const creerVehicule = async (
     dateCreation: new Date().toISOString(),
   };
   VEHICULES_MOCK.push(nouveau);
+  const vehiculesAjoutes = await obtenirVehiculesAjoutes();
+  await sauvegarderVehiculesAjoutes([...vehiculesAjoutes, nouveau]);
   return nouveau;
 };
 

@@ -6,6 +6,7 @@
 import { Utilisateur } from '../modeles/types';
 import { UTILISATEURS_MOCK } from './donneesMock';
 import { appelerApi } from './serviceApi';
+import { obtenirUtilisateursInscrits } from './stockageLocalAvance';
 
 /**
  * Récupère le profil public d'un utilisateur par son identifiant.
@@ -17,6 +18,9 @@ export const obtenirUtilisateur = async (
 ): Promise<Utilisateur | null> => {
   const reponseApi = await appelerApi<Utilisateur>(`/utilisateurs/${identifiant}`);
   if (reponseApi) return reponseApi;
+  const utilisateursInscrits = await obtenirUtilisateursInscrits();
+  const trouveInscrit = utilisateursInscrits.find((u) => u.identifiant === identifiant);
+  if (trouveInscrit) return trouveInscrit;
   return UTILISATEURS_MOCK.find((u) => u.identifiant === identifiant) || null;
 };
 
